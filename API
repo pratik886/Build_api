@@ -1,0 +1,165 @@
+1. Initialize a new Node.js project:
+2. Setup a database MongoDB 
+3.  Design an API 
+4. To create an API Structure
+5.Def5ne Webtoon model
+
+const mongoose = require('mongoose');
+
+// Define the webtoon of it
+const webtoonSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  characters: { type: [String], required: true }
+}, { timestamps: true });
+
+module.exports = mongoose.model('Webtoon', webtoonSchema);
+
+6. Authentication Middleware
+const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+dotenv.config();
+
+
+module.exports = (req, res, next) => {
+  const token = req.header('Authorization');
+  if (!token) return res.status(401).send('Access Denied! No token provided.');
+
+  try {
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = verified;
+    next();
+  } catch (err) {
+    res.status(400).send('Invalid Token');
+  }
+};
+
+7. Webtoon Controller:-
+const Webtoon = require('../models/webtoon');
+
+// Fetch all webtoons
+exports.getAllWebtoons = async (req, res) => {
+  try {
+    const webtoons = await Webtoon.find();
+    res.json(webtoons);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Fetch a specific webtoon by ID
+exports.getWebtoonById = async (req, res) => {
+  try {
+    const webtoon = await Webtoon.findById(req.params.id);
+    if (!webtoon) return res.status(404).json({ message: 'Webtoon not found' });
+    res.json(webtoon);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// Add a new webtoon
+exports.createWebtoon = async (req, res) => {
+  const { title, description, characters } = req.body;
+
+  try {
+    const webtoon = new Webtoon({ title, description, characters });
+    const savedWebtoon = await webtoon.save();
+    res.status(201).json(savedWebtoon);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// Delete a webtoon by ID
+exports.deleteWebtoon = async (req, res) => {
+  try {
+    const webtoon = await Webtoon.findById(req.params.id);
+    if (!webtoon) return res.status(404).json({ message: 'Webtoon not found' });
+
+    await webtoon.remove();
+    res.json({ message: 'Webtoon deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+8) Routes for each endpoint
+const express = require('express');
+const router = express.Router();
+const webtoonController = require('../controllers/webtoonController');
+const auth = require('../middleware/auth');
+
+// Public routes
+router.get('/webtoons', webtoonController.getAllWebtoons);
+router.get('/webtoons/:id', webtoonController.getWebtoonById);
+
+// Protected routes (JWT required)
+router.post('/webtoons', auth, webtoonController.createWebtoon);
+router.delete('/webtoons/:id', auth, webtoonController.deleteWebtoon);
+
+module.exports = router;
+
+9)Rate Limiting Middleware
+const express = require('express');
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
+const bodyParser = require('body-parser');
+const rateLimit = require('express-rate-limit');
+const cors = require('cors');
+
+dotenv.config();
+
+// Initialize app
+const app = express();
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log("Connected to MongoDB"))
+  .catch(err => console.error(err));
+
+// Middlewares
+app.use(cors());
+app.use(bodyParser.json());
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // Limit each IP to 100 requests per windowMs
+});
+app.use(apiLimiter);
+
+// Routes
+const webtoonRoutes = require('./routes/webtoonRoutes');
+app.use('/api', webtoonRoutes);
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+10) Predefined Webtoons
+[
+  {
+    "title": "Castle Swimmer",
+    "description": "The story of a beacon whose life is guided by prophecies, and the prince who is destined to kill him.",
+    "characters": ["Kappa", "Siren", "Prince", "Beacon", "Guard"]
+  },
+  {
+    "title": "Castle Swimmer II",
+    "description": "A sequel to the original Castle Swimmer, continuing the journey of Kappa and Prince.",
+    "characters": ["Kappa", "Prince", "Beacon", "New Character"]
+  }
+  // Add up to 14 webtoon entries as needed
+]
+
+11) Testing the given API :-
+GET /api/webtoons: Fetch all webtoons.
+GET /api/webtoons: Fetch a webtoon by ID.
+POST /api/webtoons: Add a new webtoon (requires a JWT token).DELETE /api/webtoons: Delete a webtoon by ID (requires a JWT token).
+
+12) Security Best Practices
+Input validation: 
+JWT Expiry:
+Environment Variables: 
